@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   CheckSquare,
@@ -13,20 +13,30 @@ import { Task } from '../../types/task';
 import { useNavigate } from 'react-router-dom';
 
 const TasksOverview: React.FC = () => {
-  const { tasks, updateTaskStatus } = useTasks();
+  const { tasks = [], updateTaskStatus } = useTasks();
   const navigate = useNavigate();
+  
+  // Add debugging log
+  useEffect(() => {
+    console.log("TasksOverview - Tasks:", tasks);
+  }, [tasks]);
   
   // Get today's tasks (due today or overdue)
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  const urgentTasks = tasks.filter(task => 
-    (task.status === 'not-started' || task.status === 'in-progress' || task.status === 'overdue') &&
-    (new Date(task.deadline) <= new Date() || task.priority === 3)
-  ).slice(0, 3);
+  // Error handling for tasks
+  const urgentTasks = Array.isArray(tasks) 
+    ? tasks.filter(task => 
+        (task.status === 'not-started' || task.status === 'in-progress' || task.status === 'overdue') &&
+        (new Date(task.deadline) <= new Date() || task.priority === 3)
+      ).slice(0, 3)
+    : [];
   
   const handleStatusChange = (taskId: string, newStatus: Task['status']) => {
-    updateTaskStatus(taskId, newStatus);
+    if (updateTaskStatus) {
+      updateTaskStatus(taskId, newStatus);
+    }
   };
   
   // Status icon mapping
@@ -40,6 +50,8 @@ const TasksOverview: React.FC = () => {
         return <CheckSquare size={16} className="text-success" />;
       case 'overdue':
         return <AlertTriangle size={16} className="text-error" />;
+      default:
+        return <Circle size={16} className="text-text-secondary" />;
     }
   };
   
@@ -53,57 +65,57 @@ const TasksOverview: React.FC = () => {
     
     return (
       <div className="flex space-x-1">
-        <div className={`w-2 h-2 rounded-full ${colors[priority as keyof typeof colors]}`}></div>
-        {priority > 1 && <div className={`w-2 h-2 rounded-full ${colors[priority as keyof typeof colors]}`}></div>}
-        {priority > 2 && <div className={`w-2 h-2 rounded-full ${colors[priority as keyof typeof colors]}`}></div>}
+        <div className={`w-2 h-2 rounded-full ${colors[priority as keyof typeof colors] || colors[1]}`}></div>
+        {priority > 1 && <div className={`w-2 h-2 rounded-full ${colors[priority as keyof typeof colors] || colors[1]}`}></div>}
+        {priority > 2 && <div className={`w-2 h-2 rounded-full ${colors[priority as keyof typeof colors] || colors[1]}`}></div>}
       </div>
     );
   };
-
+  
   return (
-    <motion.div 
+    <motion.div
       className="bg-background-secondary rounded-xl p-6 shadow-lg"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.1 }}
+      transition={{ duration: 0.4 }}
     >
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-lg font-semibold text-white">Urgent Tasks</h2>
+        <h2 className="text-lg font-semibold">Urgent Tasks</h2>
         <button 
-          className="text-accent text-sm font-medium flex items-center"
           onClick={() => navigate('/dashboard/tasks')}
+          className="text-xs flex items-center text-accent hover:underline"
         >
-          View All <ArrowRight size={16} className="ml-1" />
+          View All
+          <ArrowRight size={12} className="ml-1" />
         </button>
       </div>
       
       {urgentTasks.length === 0 ? (
-        <div className="bg-background rounded-lg p-8 text-center">
-          <p className="text-text-secondary">No urgent tasks for today!</p>
-          <p className="text-sm text-text-secondary mt-2">Great job staying on top of things.</p>
+        <div className="bg-background rounded-lg p-4 text-center">
+          <p className="text-text-secondary">No urgent tasks right now</p>
+          <p className="text-xs text-text-secondary mt-1">Great job staying on top of things!</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {urgentTasks.map((task, index) => (
             <motion.div 
-              key={task.id}
-              className="bg-background rounded-lg p-4 flex items-start"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: 0.1 * index }}
+              key={task.id} 
+              className="bg-background rounded-lg p-4 flex items-start gap-4 border border-background-tertiary"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.1 }}
             >
-              <div className="mr-3 mt-1">
-                <button 
-                  className="w-5 h-5 rounded-full border border-accent flex items-center justify-center hover:bg-accent hover:bg-opacity-20 transition-colors"
-                  onClick={() => handleStatusChange(
-                    task.id, 
-                    task.status === 'completed' ? 'not-started' : 'completed'
-                  )}
+              <div>
+                <button
+                  onClick={() => handleStatusChange(task.id, task.status === 'completed' ? 'not-started' : 'completed')}
+                  className={`w-6 h-6 rounded-full border flex items-center justify-center transition-colors ${
+                    task.status === 'completed' 
+                      ? 'bg-success border-success' 
+                      : 'border-text-secondary hover:border-accent'
+                  }`}
                 >
-                  {task.status === 'completed' ? (
-                    <CheckSquare size={12} className="text-accent" />
-                  ) : (
-                    <span></span>
+                  {task.status === 'completed' && (
+                    <CheckSquare size={12} className="text-black" />
                   )}
                 </button>
               </div>

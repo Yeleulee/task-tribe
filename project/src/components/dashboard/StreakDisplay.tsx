@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Flame, Award, Calendar, CheckSquare } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTasks } from '../../context/TaskContext';
@@ -8,9 +8,15 @@ const StreakDisplay: React.FC = () => {
   const { user, getStreakStatus } = useAuth();
   const { getTasksCompletedToday, getCompletionStats } = useTasks();
   
+  // Add logging to help debug the component
+  useEffect(() => {
+    console.log("StreakDisplay - User:", user);
+    console.log("StreakDisplay - Streak status:", getStreakStatus());
+  }, [user, getStreakStatus]);
+  
   const streakData = getStreakStatus();
-  const tasksToday = getTasksCompletedToday().length;
-  const stats = getCompletionStats();
+  const tasksToday = getTasksCompletedToday()?.length || 0;
+  const stats = getCompletionStats() || { today: 0, week: 0, month: 0, total: 0 };
   
   // Determine if the streak is at risk (no tasks completed today)
   const isStreakAtRisk = streakData.current > 0 && tasksToday === 0;

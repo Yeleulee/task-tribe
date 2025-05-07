@@ -10,8 +10,17 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { login, loginWithGoogle } = useAuth();
+  const [redirectInProgress, setRedirectInProgress] = useState(false);
+  const { currentUser, login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+
+  // If user is already logged in, redirect to dashboard
+  useEffect(() => {
+    if (currentUser) {
+      console.log("User already logged in, redirecting to dashboard");
+      navigate('/dashboard');
+    }
+  }, [currentUser, navigate]);
 
   // Check for Firebase initialization issues on component mount
   useEffect(() => {
@@ -25,6 +34,13 @@ const LoginPage: React.FC = () => {
         setError('Error connecting to authentication service. Please try again later.');
       }
     }
+    
+    // Clear any previous errors when component mounts
+    const timeout = setTimeout(() => {
+      if (error) setError(null);
+    }, 5000);
+    
+    return () => clearTimeout(timeout);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,10 +50,12 @@ const LoginPage: React.FC = () => {
 
     try {
       await login(email, password);
+      console.log("Email login successful, navigating to dashboard");
+      setRedirectInProgress(true);
       navigate('/dashboard');
     } catch (err) {
       setError((err as Error).message || 'Failed to sign in');
-      console.error(err);
+      console.error("Login error:", err);
     } finally {
       setLoading(false);
     }
@@ -54,19 +72,38 @@ const LoginPage: React.FC = () => {
       }
       
       console.log("Attempting Google sign-in...");
+      
+      // Add a timeout for better error handling
+      const timeout = setTimeout(() => {
+        if (googleLoading) {
+          setError('Sign-in taking too long. Please try again.');
+          setGoogleLoading(false);
+        }
+      }, 15000);
+      
       const user = await loginWithGoogle();
-      console.log("Google sign-in successful");
-      navigate('/dashboard');
+      clearTimeout(timeout);
+      
+      console.log("Google sign-in successful, user:", user?.uid);
+      setRedirectInProgress(true);
+      
+      // Force a delay to ensure Firebase auth state has updated
+      setTimeout(() => {
+        console.log("Navigating to dashboard after Google sign-in");
+        navigate('/dashboard', { replace: true });
+      }, 500);
     } catch (err) {
       console.error("Google sign-in error:", err);
       // Handle specific Firebase auth errors
       const errorCode = (err as any)?.code;
       if (errorCode === 'auth/configuration-not-found') {
-        setError('Google sign-in is not properly configured. Please contact support.');
+        setError(
+          'Google sign-in is not properly configured. Please contact support or use email/password sign-in instead.'
+        );
       } else if (errorCode === 'auth/popup-closed-by-user') {
         setError('Sign-in popup was closed before completing the sign-in.');
       } else if (errorCode === 'auth/popup-blocked') {
-        setError('Sign-in popup was blocked by your browser. Please allow popups for this site.');
+        setError('Sign-in popup was blocked by your browser. Please allow popups for this site and try again.');
       } else if (errorCode === 'auth/cancelled-popup-request') {
         setError('Multiple popup requests were made. Only one popup can be open at a time.');
       } else if (errorCode === 'auth/network-request-failed') {
@@ -78,6 +115,43 @@ const LoginPage: React.FC = () => {
       setGoogleLoading(false);
     }
   };
+
+  // Show loading state during redirect
+  if (redirectInProgress) {
+    return (
+      <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#e5fb26] mx-auto mb-4"></div>
+          <p className="text-white text-lg">Logging in...</p>
+          <p className="text-gray-400 text-sm mt-2">Redirecting to dashboard</p>
+          
+          {/* Debug options */}
+          <div className="mt-8 space-y-3">
+            <Link 
+              to="/dashboard" 
+              className="inline-block px-4 py-2 bg-[#e5fb26] text-black rounded hover:bg-[#d4ea15] transition-colors"
+            >
+              Go to Dashboard Directly
+            </Link>
+            <div className="flex space-x-3">
+              <Link 
+                to="/test-dashboard" 
+                className="inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
+                Test Dashboard
+              </Link>
+              <Link 
+                to="/diagnostic" 
+                className="inline-block px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors"
+              >
+                Run Diagnostic Tool
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#1a1a1a] text-white flex items-center justify-center px-4">

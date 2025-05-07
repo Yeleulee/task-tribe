@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { NavLink, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Home, 
@@ -10,10 +10,12 @@ import {
   Bell, 
   LogOut, 
   Menu, 
-  X 
+  X,
+  UserPlus
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSocial } from '../../context/SocialContext';
+import useProfile from '../../hooks/useProfile';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -21,9 +23,20 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
-  const { user, logout } = useAuth();
+  const { currentUser, logout } = useAuth();
+  const { profile, loading: profileLoading } = useProfile();
   const { getUnreadNotificationsCount } = useSocial();
   const unreadCount = getUnreadNotificationsCount();
+
+  const needsProfileSetup = !profile?.displayName;
+
+  useEffect(() => {
+    console.log("Sidebar - Auth state:", {
+      currentUser: currentUser?.uid,
+      profileLoading,
+      hasProfile: !!profile
+    });
+  }, [currentUser, profile, profileLoading]);
 
   const sidebarVariants = {
     open: { x: 0, transition: { type: 'spring', stiffness: 300, damping: 30 } },
@@ -43,6 +56,19 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
   ];
 
   const sidebarId = "main-sidebar";
+
+  // Generate initials for avatar if no profile photo
+  const generateInitials = () => {
+    if (profile?.displayName) {
+      return profile.displayName.split(' ').map(name => name[0]).join('').toUpperCase().substring(0, 2);
+    }
+    return currentUser?.email?.substring(0, 2).toUpperCase() || 'U';
+  };
+
+  // If no current user, don't render the sidebar
+  if (!currentUser) {
+    return null;
+  }
 
   return (
     <>
@@ -82,20 +108,41 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
         </div>
 
         <div className="p-4 border-b border-background-tertiary">
-          {user && (
+          {currentUser && (
             <div className="flex items-center space-x-3">
-              <img 
-                src={user.avatar}
-                alt={`${user.name}'s avatar`}
-                className="w-10 h-10 rounded-full object-cover"
-              />
+              {profileLoading ? (
+                <div className="w-10 h-10 rounded-full bg-background-tertiary animate-pulse" />
+              ) : (
+                <>
+                  {profile?.photoURL ? (
+                    <img 
+                      src={profile.photoURL}
+                      alt="User avatar"
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-[#e5fb26] text-black flex items-center justify-center font-medium">
+                      {generateInitials()}
+                    </div>
+                  )}
+                </>
+              )}
               <div>
-                <p className="font-medium">{user.name}</p>
-                <div className="flex items-center space-x-1 text-xs text-text-secondary">
-                  <span>Level {user.level}</span>
-                  <span aria-hidden="true">•</span>
-                  <span>{user.points} pts</span>
-                </div>
+                {profileLoading ? (
+                  <div className="h-5 w-24 bg-background-tertiary rounded animate-pulse" />
+                ) : (
+                  <p className="font-medium">{profile?.displayName || currentUser.email?.split('@')[0] || 'User'}</p>
+                )}
+                {needsProfileSetup ? (
+                  <Link to="/profile-setup" className="flex items-center text-xs text-[#e5fb26] hover:underline">
+                    <UserPlus size={12} className="mr-1" />
+                    Complete profile
+                  </Link>
+                ) : (
+                  <div className="flex items-center space-x-1 text-xs text-text-secondary">
+                    <span>0 points</span>
+                  </div>
+                )}
               </div>
             </div>
           )}

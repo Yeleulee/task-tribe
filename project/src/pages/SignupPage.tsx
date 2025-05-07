@@ -11,9 +11,18 @@ const SignupPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { signup, loginWithGoogle } = useAuth();
+  const [redirectInProgress, setRedirectInProgress] = useState(false);
+  const { currentUser, signup, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
+  // If user is already logged in, redirect to dashboard
+  useEffect(() => {
+    if (currentUser) {
+      console.log("User already logged in, redirecting to dashboard");
+      navigate('/dashboard');
+    }
+  }, [currentUser, navigate]);
+  
   // Check for Firebase initialization issues on component mount
   useEffect(() => {
     const initError = getFirebaseInitializationError();
@@ -26,6 +35,13 @@ const SignupPage: React.FC = () => {
         setError('Error connecting to authentication service. Please try again later.');
       }
     }
+    
+    // Clear any previous errors when component mounts
+    const timeout = setTimeout(() => {
+      if (error) setError(null);
+    }, 5000);
+    
+    return () => clearTimeout(timeout);
   }, []);
 
   const validatePassword = () => {
@@ -54,10 +70,12 @@ const SignupPage: React.FC = () => {
 
     try {
       await signup(email, password);
-      navigate('/profile-setup');
+      console.log("Email signup successful, navigating to dashboard");
+      setRedirectInProgress(true);
+      navigate('/dashboard');
     } catch (err) {
       setError((err as Error).message || 'Failed to create an account');
-      console.error(err);
+      console.error("Signup error:", err);
     } finally {
       setLoading(false);
     }
@@ -74,19 +92,38 @@ const SignupPage: React.FC = () => {
       }
       
       console.log("Attempting Google sign-up...");
+      
+      // Add a timeout for better error handling
+      const timeout = setTimeout(() => {
+        if (googleLoading) {
+          setError('Sign-up taking too long. Please try again.');
+          setGoogleLoading(false);
+        }
+      }, 15000);
+      
       const user = await loginWithGoogle();
-      console.log("Google sign-up successful");
-      navigate('/profile-setup');
+      clearTimeout(timeout);
+      
+      console.log("Google sign-up successful, user:", user?.uid);
+      setRedirectInProgress(true);
+      
+      // Force a delay to ensure Firebase auth state has updated
+      setTimeout(() => {
+        console.log("Navigating to dashboard after Google sign-up");
+        navigate('/dashboard', { replace: true });
+      }, 500);
     } catch (err) {
       console.error("Google sign-up error:", err);
       // Handle specific Firebase auth errors
       const errorCode = (err as any)?.code;
       if (errorCode === 'auth/configuration-not-found') {
-        setError('Google sign-in is not properly configured. Please contact support.');
+        setError(
+          'Google sign-up is not properly configured. Please contact support or use email/password sign-up instead.'
+        );
       } else if (errorCode === 'auth/popup-closed-by-user') {
         setError('Sign-up popup was closed before completing the sign-up.');
       } else if (errorCode === 'auth/popup-blocked') {
-        setError('Sign-up popup was blocked by your browser. Please allow popups for this site.');
+        setError('Sign-up popup was blocked by your browser. Please allow popups for this site and try again.');
       } else if (errorCode === 'auth/cancelled-popup-request') {
         setError('Multiple popup requests were made. Only one popup can be open at a time.');
       } else if (errorCode === 'auth/network-request-failed') {
@@ -98,6 +135,19 @@ const SignupPage: React.FC = () => {
       setGoogleLoading(false);
     }
   };
+
+  // Show loading state during redirect
+  if (redirectInProgress) {
+    return (
+      <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#e5fb26] mx-auto mb-4"></div>
+          <p className="text-white text-lg">Creating your account...</p>
+          <p className="text-gray-400 text-sm mt-2">Redirecting to dashboard</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#1a1a1a] text-white flex items-center justify-center px-4">

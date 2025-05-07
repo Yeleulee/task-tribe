@@ -3,6 +3,12 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, si
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getAnalytics, isAnalyticsSupported } from "firebase/analytics";
 
+// Enable Firebase debugging if specified in .env
+if (import.meta.env.VITE_FIREBASE_DEBUG === 'true' && typeof window !== 'undefined') {
+  console.log('Firebase debugging enabled');
+  window.localStorage.setItem('firebase:debug', '*');
+}
+
 // Firebase configuration from environment variables
 const firebaseConfig: FirebaseOptions = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -45,79 +51,111 @@ let googleProvider;
 let analytics = null;
 let initializationError = null;
 
-try {
-  console.log("Initializing Firebase...");
+// Retry Firebase initialization function
+const initializeFirebase = async (retryCount = 0, maxRetries = 3) => {
+  if (retryCount > maxRetries) {
+    throw new Error(`Failed to initialize Firebase after ${maxRetries} attempts`);
+  }
   
-  // Try to get an already initialized app first to prevent duplicate initialization
   try {
-    app = getApp();
-    console.log("Firebase was already initialized, reusing existing app instance");
-  } catch (e) {
-    // If no app exists, initialize a new one
-    app = initializeApp(firebaseConfig);
-    console.log("Firebase app initialized:", app.name);
-  }
-  
-  // Initialize auth
-  auth = getAuth(app);
-  console.log("Firebase auth initialized");
-  
-  // Initialize Firestore
-  db = getFirestore(app);
-  console.log("Firebase Firestore initialized");
-  
-  // Initialize Google provider
-  googleProvider = new GoogleAuthProvider();
-  googleProvider.setCustomParameters({
-    prompt: 'select_account'
-  });
-  console.log("Google provider initialized");
-
-  // Add scopes for Google provider
-  googleProvider.addScope('https://www.googleapis.com/auth/userinfo.email');
-  googleProvider.addScope('https://www.googleapis.com/auth/userinfo.profile');
-
-  // Initialize Analytics only in browser environments where it's supported
-  if (typeof window !== 'undefined') {
+    console.log(`Initializing Firebase (attempt ${retryCount + 1}/${maxRetries + 1})...`);
+    
+    // Try to get an already initialized app first to prevent duplicate initialization
     try {
-      analytics = getAnalytics(app);
-      console.log("Firebase Analytics initialized");
-    } catch (error) {
-      console.error("Analytics failed to initialize:", error);
+      app = getApp();
+      console.log("Firebase was already initialized, reusing existing app instance");
+    } catch (e) {
+      // If no app exists, initialize a new one
+      app = initializeApp(firebaseConfig);
+      console.log("Firebase app initialized:", app.name);
     }
+    
+    // Initialize auth
+    auth = getAuth(app);
+    console.log("Firebase auth initialized");
+    
+    // Initialize Firestore
+    db = getFirestore(app);
+    console.log("Firebase Firestore initialized");
+    
+    // Initialize Google provider
+    googleProvider = new GoogleAuthProvider();
+    // Clear custom parameters and set only what's needed
+    googleProvider.setCustomParameters({
+      prompt: 'select_account' // Just use this essential parameter
+    });
+    console.log("Google provider initialized");
+    
+    // Initialize Analytics only in browser environments where it's supported
+    if (typeof window !== 'undefined') {
+      try {
+        analytics = getAnalytics(app);
+        console.log("Firebase Analytics initialized");
+      } catch (error) {
+        console.error("Analytics failed to initialize:", error);
+      }
+    }
+    
+    // Make Firebase available globally for debugging
+    if (typeof window !== 'undefined') {
+      window.firebase = {
+        app,
+        auth,
+        db,
+        googleProvider
+      };
+      console.log("Firebase objects added to window for debugging");
+    }
+    
+    // Use local emulator if in development mode
+    if (import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true') {
+      try {
+        connectAuthEmulator(auth, 'http://localhost:9099');
+        connectFirestoreEmulator(db, 'localhost', 8080);
+        console.log("Connected to Firebase emulators");
+      } catch (error) {
+        console.error("Failed to connect to Firebase emulators:", error);
+      }
+    }
+    
+    // Check if initialization was successful
+    if (!app || !auth || !db) {
+      throw new Error("Firebase initialization incomplete - Some components failed to initialize");
+    }
+    
+    // Successful initialization
+    return true;
+  } catch (error) {
+    initializationError = error;
+    console.error(`Firebase initialization error (attempt ${retryCount + 1}/${maxRetries + 1}):`, error);
+    
+    // Specific error handling
+    if ((error as any)?.code === 'auth/configuration-not-found') {
+      console.error("Authentication configuration not found. Check Firebase console settings.");
+      console.error("Verify that Authentication is enabled in the Firebase console.");
+      console.error("Ensure that your domain is authorized in the Firebase console.");
+    }
+    
+    // If there are retries left, wait and try again
+    if (retryCount < maxRetries) {
+      const delay = 1000 * Math.pow(2, retryCount); // Exponential backoff
+      console.log(`Retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return initializeFirebase(retryCount + 1, maxRetries);
+    }
+    
+    throw error;
   }
+};
 
-  // Make Firebase available globally for debugging
-  if (typeof window !== 'undefined') {
-    window.firebase = {
-      app,
-      auth,
-      db,
-      googleProvider
-    };
-    console.log("Firebase objects added to window for debugging");
-  }
-  
-  // Use local emulator if in development mode
-  if (import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true') {
-    try {
-      connectAuthEmulator(auth, 'http://localhost:9099');
-      connectFirestoreEmulator(db, 'localhost', 8080);
-      console.log("Connected to Firebase emulators");
-    } catch (error) {
-      console.error("Failed to connect to Firebase emulators:", error);
-    }
-  }
+// Perform initialization
+try {
+  initializeFirebase()
+    .then(() => console.log("Firebase initialization complete"))
+    .catch(err => console.error("Firebase initialization failed:", err));
 } catch (error) {
-  console.error("Firebase initialization error:", error);
+  console.error("Error during Firebase initialization:", error);
   initializationError = error;
-  
-  // Log detailed error information for debugging
-  if ((error as any)?.code === 'auth/configuration-not-found') {
-    console.error("Authentication configuration not found. Check Firebase console settings.");
-    console.error("Verify that Authentication is enabled in the Firebase console.");
-    console.error("Ensure that your domain is authorized in the Firebase console.");
-  }
 }
 
 // Function to check if Firebase is properly initialized
@@ -177,13 +215,13 @@ export const loginWithGoogle = async () => {
   
   try {
     console.log("Attempting to log in with Google...");
-    // Add additional parameters to the Google sign-in to help with debugging
-    googleProvider.setCustomParameters({
-      prompt: 'select_account',
-      // Adding login_hint can help with some auth issues
-      login_hint: 'user@example.com'
-    });
-    const result = await signInWithPopup(auth, googleProvider);
+    
+    // Create a fresh provider for each login attempt
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    
+    // Use signInWithRedirect instead of popup if popup is causing issues
+    const result = await signInWithPopup(auth, provider);
     console.log("Google sign-in successful:", result.user.uid);
     return result.user;
   } catch (error) {
