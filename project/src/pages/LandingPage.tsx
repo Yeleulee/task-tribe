@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   CheckSquare, 
   Calendar, 
@@ -16,7 +16,7 @@ import {
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
-  
+
   // Animation variants
   const fadeIn = {
     hidden: { opacity: 0, y: 20 },
@@ -75,148 +75,105 @@ const LandingPage: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen overflow-hidden bg-background text-white">
-      {/* Header Section */}
-      <header className="border-b border-background-tertiary">
+    <div className="min-h-screen bg-[#1a1a1a] text-white">
+      {/* Header */}
+      <header className="fixed w-full top-0 bg-[#1a1a1a]/80 backdrop-blur-sm z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <div className="bg-accent rounded-lg p-1.5">
-              <CheckSquare className="text-background" size={20} />
-            </div>
-            <span className="text-xl font-bold">TaskTribe</span>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => navigate('/dashboard')}
-              className="flex items-center justify-center bg-accent hover:bg-accent/90 text-background font-medium py-2 px-6 rounded-lg transition-all shadow-lg"
+          <Link to="/" className="text-2xl font-bold text-[#e5fb26]">
+            TaskTribe
+          </Link>
+          <div className="flex gap-4">
+            <Link
+              to="/login"
+              className="px-4 py-2 text-[#e5fb26] hover:text-[#d4ea15] transition-colors"
             >
-              <Zap size={18} className="mr-2" />
-              <span>Try Dashboard</span>
-            </motion.button>
+              Sign In
+            </Link>
+            <Link
+              to="/signup"
+              className="px-4 py-2 bg-[#e5fb26] text-black rounded hover:bg-[#d4ea15] transition-colors"
+            >
+              Sign Up
+            </Link>
           </div>
         </div>
       </header>
-      
+
       {/* Hero Section */}
-      <section className="pt-12 pb-24 relative overflow-hidden">
-        <div className="absolute top-40 left-10 w-72 h-72 bg-accent/10 rounded-full blur-3xl -z-10"></div>
-        <div className="absolute top-60 right-20 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl -z-10"></div>
-        
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <motion.div
-              custom={1}
-              variants={fadeIn}
-              initial="hidden"
-              animate="visible"
-              className="inline-block bg-background-secondary rounded-full px-4 py-1 text-accent text-sm font-medium mb-4"
-            >
-              Powered by Gemini AI
-            </motion.div>
-            
-            <motion.h1 
-              custom={2}
-              variants={fadeIn}
-              initial="hidden"
-              animate="visible"
-              className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 leading-tight"
-            >
-              Transform your productivity with <span className="text-accent">AI assistance</span>
-            </motion.h1>
-            
-            <motion.p 
-              custom={3}
-              variants={fadeIn}
-              initial="hidden"
-              animate="visible"
-              className="text-lg text-text-secondary mb-8 max-w-2xl mx-auto"
-            >
-              TaskTribe combines intelligent task management with advanced AI assistance to help you organize work, manage your calendar, and boost productivity.
-            </motion.p>
-            
-            <motion.div
-              custom={4}
-              variants={fadeIn}
-              initial="hidden"
-              animate="visible"
-              className="flex flex-col sm:flex-row items-center justify-center gap-4"
-            >
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => navigate('/dashboard')}
-                className="bg-accent text-background font-semibold rounded-lg text-lg py-4 px-8 flex items-center w-full sm:w-auto justify-center"
-              >
-                Experience Dashboard
-                <ArrowRight className="ml-2" size={20} />
-              </motion.button>
-              
-              <div className="flex items-center space-x-2 text-text-secondary">
-                <Star className="text-accent" size={20} />
-                <span>4.9/5 from 1000+ users</span>
-              </div>
-            </motion.div>
-          </div>
-          
-          {/* Preview Image */}
+      <motion.section
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="pt-32 pb-20 px-4"
+      >
+        <div className="container mx-auto max-w-6xl">
           <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ 
-              opacity: 1, 
-              y: 0,
-              transition: { delay: 0.5, duration: 0.8 }
-            }}
-            className="mt-16 max-w-5xl mx-auto rounded-xl overflow-hidden shadow-2xl border border-background-tertiary"
+            initial={{ y: 20 }}
+            animate={{ y: 0 }}
+            className="text-center"
           >
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent z-10 pointer-events-none"></div>
-              <img 
-                src="https://i.imgur.com/XDPaqn6.png" 
-                alt="TaskTribe Dashboard" 
-                className="w-full h-auto object-cover"
-              />
+            <h1 className="text-5xl md:text-7xl font-bold mb-6">
+              Collaborate with your{' '}
+              <span className="text-[#e5fb26]">tribe</span>
+            </h1>
+            <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto">
+              Join TaskTribe and experience a new way of managing tasks with your team.
+              Simple, intuitive, and designed for modern collaboration.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                to="/signup"
+                className="px-8 py-4 bg-[#e5fb26] text-black rounded-lg font-semibold hover:bg-[#d4ea15] transition-colors"
+              >
+                Sign Up
+              </Link>
+              <Link
+                to="/login"
+                className="px-8 py-4 border border-[#e5fb26] text-[#e5fb26] rounded-lg font-semibold hover:bg-[#e5fb26]/10 transition-colors"
+              >
+                Sign In
+              </Link>
             </div>
           </motion.div>
         </div>
-      </section>
-      
+      </motion.section>
+
       {/* Features Section */}
-      <section className="py-20 bg-background-secondary">
+      <section className="py-20 bg-[#2a2a2a]">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold mb-4">AI-Powered Features</h2>
-            <p className="text-text-secondary max-w-2xl mx-auto">
-              Experience the next generation of task management with intelligent assistance at every step
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {features.map((feature, index) => (
+          <h2 className="text-3xl font-bold text-center mb-12">
+            Why Choose <span className="text-[#e5fb26]">TaskTribe</span>?
+          </h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                title: 'Real-time Collaboration',
+                description: 'Work together with your team in real-time, seeing updates as they happen.'
+              },
+              {
+                title: 'Smart Organization',
+                description: 'Keep your tasks organized with intuitive categories and tags.'
+              },
+              {
+                title: 'Progress Tracking',
+                description: 'Track your team\'s progress with visual dashboards and reports.'
+              }
+            ].map((feature, index) => (
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
-                whileInView={{ 
-                  opacity: 1, 
-                  y: 0,
-                  transition: { delay: index * 0.1, duration: 0.5 }
-                }}
+                whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                className="bg-background rounded-xl p-6 border border-background-tertiary hover:border-accent/30 transition-all"
+                transition={{ delay: index * 0.2 }}
+                className="p-6 bg-[#1a1a1a] rounded-lg"
               >
-                <div className="bg-background-tertiary inline-block p-3 rounded-lg mb-4">
-                  {feature.icon}
-                </div>
-                <h3 className="text-xl font-bold mb-2">{feature.title}</h3>
-                <p className="text-text-secondary">{feature.description}</p>
+                <h3 className="text-xl font-semibold mb-4">{feature.title}</h3>
+                <p className="text-gray-400">{feature.description}</p>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
-      
+
       {/* AI Chat Demo Section */}
       <section className="py-20">
         <div className="container mx-auto px-4">
@@ -253,7 +210,6 @@ const LandingPage: React.FC = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => navigate('/dashboard')}
                 className="bg-accent text-background font-medium py-3 px-6 rounded-lg inline-flex items-center"
               >
                 <MessageSquare size={18} className="mr-2" />
@@ -390,10 +346,10 @@ const LandingPage: React.FC = () => {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => navigate('/dashboard')}
               className="bg-accent text-background font-semibold rounded-lg text-lg py-4 px-8 flex items-center mx-auto"
+              onClick={() => navigate('/signup')}
             >
-              Get Started Now
+              Sign Up Now
               <ArrowRight className="ml-2" size={20} />
             </motion.button>
           </motion.div>

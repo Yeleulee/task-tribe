@@ -2,6 +2,9 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import LandingPage from './pages/LandingPage';
+import LoginPage from './pages/LoginPage';
+import SignupPage from './pages/SignupPage';
+import ProfileSetupPage from './pages/ProfileSetupPage';
 import DashboardPage from './pages/DashboardPage';
 import TasksPage from './pages/TasksPage';
 import CreateTaskPage from './pages/CreateTaskPage';
@@ -14,6 +17,7 @@ import { TaskProvider } from './context/TaskContext';
 import { SocialProvider } from './context/SocialContext';
 import { AiAssistantProvider } from './context/AiAssistantContext';
 import { CalendarProvider } from './context/CalendarContext';
+import PrivateRoute from './components/auth/PrivateRoute';
 
 function App() {
   return (
@@ -25,7 +29,10 @@ function App() {
               <AiAssistantProvider>
                 <Routes>
                   <Route path="/" element={<LandingPage />} />
-                  <Route path="/dashboard" element={<Layout />}>
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/signup" element={<SignupPage />} />
+                  <Route path="/profile-setup" element={<PrivateRoute><ProfileSetupPage /></PrivateRoute>} />
+                  <Route path="/dashboard" element={<PrivateRoute><Layout /></PrivateRoute>}>
                     <Route index element={<DashboardPage />} />
                     <Route path="tasks" element={<TasksPage />} />
                     <Route path="tasks/new" element={<CreateTaskPage />} />

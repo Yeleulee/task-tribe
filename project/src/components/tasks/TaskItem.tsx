@@ -43,6 +43,12 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onEdit }) => {
     updateTaskStatus(task.id, newStatus);
   };
   
+  const handleMenuKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setShowMenu(false);
+    }
+  };
+
   const getPriorityLabel = (priority: Priority) => {
     switch(priority) {
       case 1: return 'Low';
@@ -64,13 +70,13 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onEdit }) => {
   const getStatusIcon = () => {
     switch(task.status) {
       case 'not-started':
-        return <Circle size={18} className="text-text-secondary" />;
+        return <Circle size={18} className="text-text-secondary" aria-hidden="true" />;
       case 'in-progress':
-        return <Clock size={18} className="text-warning" />;
+        return <Clock size={18} className="text-warning" aria-hidden="true" />;
       case 'completed':
-        return <CheckSquare size={18} className="text-success" />;
+        return <CheckSquare size={18} className="text-success" aria-hidden="true" />;
       case 'overdue':
-        return <AlertTriangle size={18} className="text-error" />;
+        return <AlertTriangle size={18} className="text-error" aria-hidden="true" />;
     }
   };
   
@@ -98,9 +104,10 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onEdit }) => {
 
   const streakData = getStreakStatus();
   const pointsForPriority = task.priority === 3 ? 30 : task.priority === 2 ? 20 : 10;
+  const menuId = `task-menu-${task.id}`;
 
   return (
-    <motion.div 
+    <motion.article 
       className="bg-background-secondary rounded-lg p-4 shadow-md relative overflow-hidden"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
@@ -116,8 +123,10 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onEdit }) => {
             animate={{ y: 0 }}
             exit={{ y: -40 }}
             transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+            role="status"
+            aria-live="polite"
           >
-            <Flame className="mr-2" size={16} />
+            <Flame className="mr-2" size={16} aria-hidden="true" />
             <span>
               {streakData.current > 1 
                 ? `Great work! Streak: ${streakData.current} days • +${pointsForPriority} points` 
@@ -131,11 +140,13 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onEdit }) => {
         <button 
           className="mt-1 mr-3 w-6 h-6 rounded-full flex items-center justify-center border border-accent hover:bg-accent hover:bg-opacity-20 transition-all"
           onClick={() => handleStatusChange(task.status === 'completed' ? 'not-started' : 'completed')}
+          aria-label={task.status === 'completed' ? `Mark "${task.title}" as not started` : `Mark "${task.title}" as completed`}
+          aria-pressed={task.status === 'completed'}
         >
           {task.status === 'completed' ? (
-            <CheckSquare size={14} className="text-accent" />
+            <CheckSquare size={14} className="text-accent" aria-hidden="true" />
           ) : (
-            <span className="w-3 h-3 rounded-full bg-accent bg-opacity-0 hover:bg-opacity-50 transition-colors" />
+            <span className="w-3 h-3 rounded-full bg-accent bg-opacity-0 hover:bg-opacity-50 transition-colors" aria-hidden="true" />
           )}
         </button>
         
@@ -149,22 +160,32 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onEdit }) => {
               <button 
                 className="p-1 text-text-secondary hover:text-white rounded-full hover:bg-background-tertiary mr-1"
                 onClick={() => setShowAiHelp(!showAiHelp)}
-                title="AI Assistance"
+                aria-label={showAiHelp ? "Hide AI assistance" : "Show AI assistance"}
+                aria-expanded={showAiHelp}
               >
-                <Bot size={16} className={showAiHelp ? "text-accent" : "text-text-secondary"} />
+                <Bot size={16} className={showAiHelp ? "text-accent" : "text-text-secondary"} aria-hidden="true" />
               </button>
               
               <button 
                 className="p-1 text-text-secondary hover:text-white rounded-full hover:bg-background-tertiary"
                 onClick={() => setShowMenu(!showMenu)}
+                aria-label="Task options"
+                aria-haspopup="true"
+                aria-expanded={showMenu}
+                aria-controls={menuId}
               >
-                <MoreVertical size={16} />
+                <MoreVertical size={16} aria-hidden="true" />
               </button>
               
               {showMenu && (
                 <div 
+                  id={menuId}
                   className="absolute right-0 mt-1 w-36 bg-background shadow-lg rounded-lg z-10 py-1 border border-background-tertiary"
                   onMouseLeave={() => setShowMenu(false)}
+                  onKeyDown={handleMenuKeyDown}
+                  role="menu"
+                  aria-orientation="vertical"
+                  aria-labelledby="task-options-button"
                 >
                   <button 
                     className="w-full text-left px-4 py-2 text-sm hover:bg-background-tertiary flex items-center"
@@ -172,8 +193,9 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onEdit }) => {
                       setShowMenu(false);
                       if (onEdit) onEdit(task);
                     }}
+                    role="menuitem"
                   >
-                    <Edit size={14} className="mr-2" />
+                    <Edit size={14} className="mr-2" aria-hidden="true" />
                     Edit
                   </button>
                   {task.status !== 'in-progress' && (
@@ -183,8 +205,9 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onEdit }) => {
                         setShowMenu(false);
                         handleStatusChange('in-progress');
                       }}
+                      role="menuitem"
                     >
-                      <Play size={14} className="mr-2" />
+                      <Play size={14} className="mr-2" aria-hidden="true" />
                       Start
                     </button>
                   )}
@@ -194,8 +217,9 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onEdit }) => {
                       setShowMenu(false);
                       deleteTask(task.id);
                     }}
+                    role="menuitem"
                   >
-                    <Trash2 size={14} className="mr-2" />
+                    <Trash2 size={14} className="mr-2" aria-hidden="true" />
                     Delete
                   </button>
                 </div>
@@ -211,26 +235,26 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onEdit }) => {
           
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center space-x-2">
-              <div className={`text-xs px-2 py-1 rounded ${getStatusBadge()}`}>
+              <div className={`text-xs px-2 py-1 rounded ${getStatusBadge()}`} role="status">
                 {getStatusText()}
               </div>
               
               <div className={`text-xs px-2 py-1 rounded bg-background flex items-center space-x-1`}>
-                <span className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)}`}></span>
-                <span>{getPriorityLabel(task.priority)}</span>
+                <span className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)}`} aria-hidden="true"></span>
+                <span>Priority: {getPriorityLabel(task.priority)}</span>
               </div>
             </div>
             
             <div className="flex items-center space-x-3 text-xs text-text-secondary">
-              <span>{task.estimatedTime} min</span>
-              <span>Due {format(new Date(task.deadline), 'MMM d')}</span>
+              <span><span className="sr-only">Estimated time:</span> {task.estimatedTime} min</span>
+              <span><span className="sr-only">Due date:</span> {format(new Date(task.deadline), 'MMM d')}</span>
             </div>
           </div>
           
           {showAiHelp && <TaskAiSuggestion taskName={task.title} />}
         </div>
       </div>
-    </motion.div>
+    </motion.article>
   );
 };
 

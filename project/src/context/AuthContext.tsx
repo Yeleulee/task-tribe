@@ -1,204 +1,115 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { User } from '../types/user';
-import { currentUser } from '../utils/mockData';
-import { isToday, isYesterday, differenceInCalendarDays } from 'date-fns';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { User } from 'firebase/auth';
+import { auth, getCurrentUser, loginUser, registerUser, logoutUser, loginWithGoogle } from '../config/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
+// Define the context type
 interface AuthContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
-  updateStreak: (taskCompletionDate: Date) => void;
-  resetStreak: () => void;
-  getStreakStatus: () => { current: number; lastUpdated: Date | null };
-  addPoints: (points: number) => void;
+  currentUser: User | null;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<User>;
+  signup: (email: string, password: string) => Promise<User>;
+  loginWithGoogle: () => Promise<User>;
+  logout: () => Promise<boolean>;
+  error: string | null;
 }
 
-interface StreakData {
-  lastUpdated: Date | null;
-  current: number;
-}
+// Create context with default values
+const AuthContext = createContext<AuthContextType>({
+  currentUser: null,
+  loading: true,
+  login: async () => { throw new Error('Not implemented'); },
+  signup: async () => { throw new Error('Not implemented'); },
+  loginWithGoogle: async () => { throw new Error('Not implemented'); },
+  logout: async () => { throw new Error('Not implemented'); },
+  error: null
+});
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// Custom hook to use the auth context
+export const useAuth = () => {
+  return useContext(AuthContext);
+};
 
-const STREAK_KEY = 'tasktribe_streak_data';
+// Provider component
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(currentUser); // Auto-logged in for demo
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true); // Auto-authenticated for demo
-  const [streakData, setStreakData] = useState<StreakData>(() => {
-    // Try to load streak data from localStorage
-    const savedData = localStorage.getItem(STREAK_KEY);
-    if (savedData) {
-      try {
-        const parsed = JSON.parse(savedData);
-        return {
-          lastUpdated: parsed.lastUpdated ? new Date(parsed.lastUpdated) : null,
-          current: parsed.current || 0
-        };
-      } catch (e) {
-        return { lastUpdated: null, current: 0 };
-      }
-    }
-    return { lastUpdated: null, current: 0 };
-  });
-
-  // Update localStorage when streak data changes
+  // Set up the auth state listener
   useEffect(() => {
-    localStorage.setItem(STREAK_KEY, JSON.stringify(streakData));
-  }, [streakData]);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      setLoading(false);
+    });
 
-  // Check streak status on load
-  useEffect(() => {
-    if (user && streakData.lastUpdated) {
-      // If last update wasn't today or yesterday, check if streak should be reset
-      if (!isToday(streakData.lastUpdated) && !isYesterday(streakData.lastUpdated)) {
-        const daysSinceLastUpdate = differenceInCalendarDays(new Date(), streakData.lastUpdated);
-        if (daysSinceLastUpdate > 1) {
-          // More than 1 day has passed, reset streak
-          resetStreak();
-        }
-      }
-      
-      // Update user object with current streak
-      updateUserStreak(streakData.current);
-    }
+    // Clean up the listener on unmount
+    return unsubscribe;
   }, []);
 
-  const updateUserStreak = (streakCount: number) => {
-    if (user) {
-      setUser({
-        ...user,
-        streak: streakCount
-      });
-    }
-  };
-
-  const updateStreak = (taskCompletionDate: Date) => {
-    if (!user) return;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const completionDay = new Date(taskCompletionDate);
-    completionDay.setHours(0, 0, 0, 0);
-    
-    // Only process if task was completed today
-    if (completionDay.getTime() !== today.getTime()) return;
-    
-    // Check the last streak update date
-    if (streakData.lastUpdated) {
-      const lastUpdate = new Date(streakData.lastUpdated);
-      lastUpdate.setHours(0, 0, 0, 0);
-      
-      if (lastUpdate.getTime() === today.getTime()) {
-        // Already updated today, do nothing
-        return;
-      }
-
-      if (isYesterday(lastUpdate)) {
-        // Streak continues
-        const newStreakCount = streakData.current + 1;
-        setStreakData({
-          lastUpdated: today,
-          current: newStreakCount
-        });
-        updateUserStreak(newStreakCount);
-      } else {
-        // Streak broken, start new streak at 1
-        setStreakData({
-          lastUpdated: today,
-          current: 1
-        });
-        updateUserStreak(1);
-      }
-    } else {
-      // First time updating streak
-      setStreakData({
-        lastUpdated: today,
-        current: 1
-      });
-      updateUserStreak(1);
-    }
-  };
-
-  const resetStreak = () => {
-    setStreakData({
-      lastUpdated: null,
-      current: 0
-    });
-    
-    if (user) {
-      updateUserStreak(0);
-    }
-  };
-
-  const getStreakStatus = () => {
-    return {
-      current: streakData.current,
-      lastUpdated: streakData.lastUpdated
-    };
-  };
-
-  const addPoints = (points: number) => {
-    if (user) {
-      const newPoints = user.points + points;
-      // Simple level calculation (every 100 points = 1 level)
-      const newLevel = Math.floor(newPoints / 100);
-      
-      setUser({
-        ...user,
-        points: newPoints,
-        level: newLevel
-      });
-    }
-  };
-
-  const login = async (email: string, password: string) => {
-    // Simulating API call
+  // Login function
+  const login = async (email: string, password: string): Promise<User> => {
     try {
-      // In a real app, we would validate credentials against a backend
-      setUser(currentUser);
-      setIsAuthenticated(true);
-      
-      // Initialize streak data if it doesn't exist
-      if (!streakData.lastUpdated) {
-        setStreakData({
-          lastUpdated: new Date(),
-          current: currentUser.streak || 0
-        });
-      }
-    } catch (error) {
-      console.error('Login failed:', error);
-      throw new Error('Invalid credentials');
+      setError(null);
+      const user = await loginUser(email, password);
+      return user;
+    } catch (err) {
+      setError((err as Error).message);
+      throw err;
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    setIsAuthenticated(false);
+  // Signup function
+  const signup = async (email: string, password: string): Promise<User> => {
+    try {
+      setError(null);
+      const user = await registerUser(email, password);
+      return user;
+    } catch (err) {
+      setError((err as Error).message);
+      throw err;
+    }
+  };
+  
+  // Google login function
+  const signInWithGoogle = async (): Promise<User> => {
+    try {
+      setError(null);
+      const user = await loginWithGoogle();
+      return user;
+    } catch (err) {
+      setError((err as Error).message);
+      throw err;
+    }
+  };
+
+  // Logout function
+  const logout = async (): Promise<boolean> => {
+    try {
+      setError(null);
+      await logoutUser();
+      return true;
+    } catch (err) {
+      setError((err as Error).message);
+      throw err;
+    }
+  };
+
+  const value = {
+    currentUser,
+    loading,
+    login,
+    signup,
+    loginWithGoogle: signInWithGoogle,
+    logout,
+    error
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      isAuthenticated, 
-      login, 
-      logout, 
-      updateStreak, 
-      resetStreak, 
-      getStreakStatus,
-      addPoints
-    }}>
-      {children}
+    <AuthContext.Provider value={value}>
+      {!loading && children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+export default AuthProvider;
